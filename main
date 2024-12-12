@@ -1,0 +1,283 @@
+import pygame
+import random
+import time
+
+
+
+
+# Initialize pygame
+pygame.init()
+
+# Set display surface
+WINDOW_WIDTH = 1000
+WINDOW_HEIGHT = 400
+display_surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+pygame.display.set_caption("Slay the Dragon!")
+
+# Set FPS and clock
+FPS = 60
+clock = pygame.time.Clock()
+
+# Set game values
+PLAYER_STARTING_LIVES = 5
+PLAYER_VELOCITY = 10
+COIN_STARTING_VELOCITY = 10
+COIN_ACCELERATION = .5
+BUFFER_DISTANCE = 100
+# Define reset-line
+line_start = (1150, 0)
+line_end = (1150, 450)
+line_width = 2
+health = 100.0      # Current Health (float so division doesn't make an int)
+MAX_HEALTH = 100    # Max Health
+health_dashes = 20   # Max Displayed dashes
+score = 0
+player_lives = PLAYER_STARTING_LIVES
+coin_velocity = COIN_STARTING_VELOCITY
+
+# Set colors
+RED = (233,84,97)
+DARKRED = (183,43,55)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+
+#set images
+intro1 = pygame.image.load("intro_1.png")
+intro1 = pygame.transform.scale(intro1, (WINDOW_WIDTH, WINDOW_HEIGHT)) 
+
+intro2 = pygame.image.load("intro_2.png")
+intro2 = pygame.transform.scale(intro2, (WINDOW_WIDTH, WINDOW_HEIGHT))
+# Set fonts
+font = pygame.font.Font('Evil_Font.ttf', 32)
+font2 = pygame.font.Font('health_bar_font.ttf', 28)
+
+# Set text
+score_text = font.render("Score: " + str(score), True, RED, DARKRED)
+score_rect = score_text.get_rect()
+score_rect.topleft = (10, 10)
+
+title_text = font.render("Slay The Dragon!", True, RED, WHITE)
+title_rect = title_text.get_rect()
+title_rect.centerx = WINDOW_WIDTH // 2
+title_rect.y = 10
+
+lives_text = font.render("Lives: " + str(player_lives), True, RED, DARKRED)
+lives_rect = lives_text.get_rect()
+lives_rect.topright = (WINDOW_WIDTH - 10, 10)
+
+win_text = font.render("You Won!", RED, DARKRED)
+win_rect = win_text.get_rect()
+win_rect.center = (WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
+
+game_over_text = font.render("GAMEOVER", True, RED, DARKRED)
+game_over_rect = game_over_text.get_rect()
+game_over_rect.center = (WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
+
+continue_text = font.render("Press any key to play again", True, RED, DARKRED)
+continue_rect = continue_text.get_rect()
+continue_rect.center = (WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 32)
+
+# Set sounds and music
+coin_sound = pygame.mixer.Sound("miss_explosion.flac")
+miss_sound = pygame.mixer.Sound("explosion1.mp3")
+miss_sound.set_volume(.8)
+pygame.mixer.music.load("Menace.ogg")
+deflect_sound = pygame.mixer.Sound("deflect.wav")
+deflect_sound.set_volume(.8)
+# Set images
+player_image = pygame.image.load("hero.png")
+player_rect = player_image.get_rect()
+player_rect.left = 32
+player_rect.centery = WINDOW_HEIGHT // 2
+
+dragon_image = pygame.image.load("dragon.png")
+
+coin_image = pygame.image.load("fireball.png")
+coin_rect = coin_image.get_rect()
+coin_rect.x = WINDOW_WIDTH + BUFFER_DISTANCE
+coin_rect.y = random.randint(64, WINDOW_HEIGHT - 32)
+
+# Define function to display health bar copied/adapted from https://copilot.microsoft.com/  (promt was: can you help me create a function that will blit text to a surface in python)
+def blit_healthbar(text, pos, font, color = (255, 255, 255)):
+    text_surface = font.render(text, True, color)
+    display_surface.blit(text_surface, pos)
+
+# Define function to check if objects are nearby. copied/ adapted from https://copilot.microsoft.com/   (prompt was: what's an equation that could show me whenever an object is near another in python)
+def is_nearby(obj1, obj2, distance):
+    return abs(obj1.x - obj2.x) < distance and abs(obj1.y - obj2.y) < distance
+
+
+def intro_screen():
+    intro_running = True
+    intro_first = True
+    while intro_running:
+
+        if intro_first == True:
+            display_surface.blit(intro1, (0, 0))
+        pygame.display.update()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                intro_running = False
+            if event.type == pygame.KEYDOWN:
+                intro_first = False
+                if intro_first == False:
+                    display_surface.blit(intro2, (0, 0))
+                    for event in pygame.event.get():
+                        if event.type == pygame.KEYDOWN or event.type == pygame.QUIT:
+                            intro_running = False
+ 
+                    
+        
+   
+def intro_screen2():
+    if intro_running == True:
+        intro_running2 = False
+    
+    intro_running2 = True
+    while intro_running2:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                intro_running = False
+            if event.type == pygame.KEYDOWN:
+                intro_running2 = False
+        display_surface.blit(intro1, (0, 0))
+        pygame.display.update()
+        
+#intro
+intro_screen()
+
+
+
+pygame.mixer.music.play(-1, 0.0)
+running = True
+# Main game loop
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+        #deflect mechanic
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE: 
+                if coin_rect.colliderect(player_rect) or is_nearby(coin_rect, player_rect, 250):
+                    coin_velocity = -coin_velocity
+                    score += 1
+                    score += 1
+                    deflect_sound.play()
+    #minor score fix
+    if score % 5 == 0: 
+        health -= 10
+        score += 1
+
+    # Check to see if the user wants to move
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_UP] and player_rect.top > 64:
+        player_rect.y -= PLAYER_VELOCITY
+    if keys[pygame.K_DOWN] and player_rect.bottom < WINDOW_HEIGHT:
+        player_rect.y += PLAYER_VELOCITY
+
+    
+    # if fireball touches reset line it'll now reset
+    if coin_rect.colliderect(pygame.Rect(line_start[0], 0, line_width, WINDOW_HEIGHT)):
+        coin_velocity = -coin_velocity
+        coin_rect.x = WINDOW_WIDTH - 100
+        coin_rect.y = WINDOW_HEIGHT - 100
+        coin_velocity = coin_velocity + COIN_ACCELERATION
+
+    # Move the coin
+    if coin_rect.x < 0:
+        # Player missed the coin
+        player_lives -= 1
+        miss_sound.play()
+        coin_rect.x = WINDOW_WIDTH + BUFFER_DISTANCE
+        coin_rect.y = random.randint(64, WINDOW_HEIGHT - 32)
+    else:
+        # Move the coin
+        coin_rect.x -= coin_velocity
+
+    # Check for collisions
+    if player_rect.colliderect(coin_rect):
+        score += 1
+        coin_sound.play()
+        coin_velocity += COIN_ACCELERATION
+        coin_rect.x = WINDOW_WIDTH + BUFFER_DISTANCE
+        coin_rect.y = random.randint(64, WINDOW_HEIGHT - 32)
+
+    # Update HUD
+    score_text = font.render("Score: " + str(score), True, RED, DARKRED)
+    lives_text = font.render("Lives: " + str(player_lives), True, RED, DARKRED)
+
+    
+    if health <= 0:
+        display_surface.blit(win_text, win_rect)
+        pygame.display.update()
+        pygame.mixer.music.stop()
+        is_paused = True
+        while is_paused:
+            if event.type == pygame.KEYDOWN:
+                    score = 0
+                    health = 100
+                    player_lives = PLAYER_STARTING_LIVES
+                    player_rect.y = WINDOW_HEIGHT // 2
+                    coin_velocity = COIN_STARTING_VELOCITY
+                    pygame.mixer.music.play(-1, 0.0)
+                    is_paused = False
+            if event.type == pygame.QUIT:
+                    is_paused = False
+                    running = False
+
+    # Check for game over
+    if player_lives == 0:
+        health = 100
+        display_surface.blit(game_over_text, game_over_rect)
+        display_surface.blit(continue_text, continue_rect)
+        pygame.display.update()
+        pygame.mixer.music.stop()
+        is_paused = True
+        while is_paused:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    score = 0
+                    player_lives = PLAYER_STARTING_LIVES
+                    player_rect.y = WINDOW_HEIGHT // 2
+                    coin_velocity = COIN_STARTING_VELOCITY
+                    pygame.mixer.music.play(-1, 0.0)
+                    is_paused = False
+                if event.type == pygame.QUIT:
+                    is_paused = False
+                    running = False
+
+    # Fill the display
+    display_surface.fill(BLACK)
+
+    #throw that dragon in there
+    display_surface.blit(dragon_image, (WINDOW_WIDTH - 200, 200))
+    # Blit the HUD to screen
+    display_surface.blit(score_text, score_rect)
+    display_surface.blit(title_text, title_rect)
+    display_surface.blit(lives_text, lives_rect)
+    pygame.draw.line(display_surface, WHITE, (0, 64), (WINDOW_WIDTH, 64), 2)
+    pygame.draw.line(display_surface, WHITE, (0, 64), (WINDOW_WIDTH, 64), 2)
+
+    # Display health copied/adapted from https://stackoverflow.com/questions/48035367/python-text-game-health-bar
+    dash_convert = MAX_HEALTH/health_dashes     
+    current_dashes = health/dash_convert        
+    remainingHealth = health_dashes - current_dashes   
+    health_display = '-' * int(current_dashes)                
+    remaining_display = ' ' * int(remainingHealth)   
+    health_bar = ("|" + health_display + remaining_display + "|") 
+    percent = str(int((health/MAX_HEALTH)*100)) + "%" 
+    blit_healthbar(health_bar, (WINDOW_WIDTH - 350, 30), font2)
+    blit_healthbar('Dragons Health!', (WINDOW_WIDTH - 350, 5), font2)
+
+    # Blit assets to screen
+    display_surface.blit(player_image, player_rect)
+    display_surface.blit(coin_image, coin_rect)
+
+    # Update display and tick the clock
+    pygame.display.update()
+    clock.tick(FPS)
+
+# End the game
+pygame.quit()
